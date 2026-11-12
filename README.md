@@ -16,7 +16,7 @@ Background: [A new colleague, set up like the last](https://adyta.nl/en/engineer
 - **Distribution groups.** They are read-only in Graph; the tool adds them through Exchange
   in the same run.
 - **No free license.** It can move the licenses of a colleague who left, and shows how each
-  seat in a license group comes free before anything changes.
+  seat in a license group is freed up before anything changes.
 - **The old mailbox.** Without a license it is deleted after 30 days; the tool offers to make
   it a shared mailbox first.
 - **The phone number.** It moves the Teams number, turns Enterprise Voice on explicitly and
@@ -46,12 +46,13 @@ Background: [A new colleague, set up like the last](https://adyta.nl/en/engineer
 The tool reuses an existing Microsoft Graph session in the PowerShell window it runs in, and
 connects without a tenant ID. If you worked in another tenant in the same window, the new user
 would be created there. Exchange and Teams sessions are checked against the Graph tenant, but
-the Graph tenant itself is not shown. So start every tenant in a **new PowerShell window**, or
+the Graph tenant itself is not shown. So use a **new PowerShell window for each tenant**, or
 run `Disconnect-MgGraph` first. Partner access through GDAP is not supported.
 
 ## Quick start
 
 ```powershell
+Unblock-File .\CopyUser-M365.ps1   # once, after downloading
 .\CopyUser-M365.ps1
 ```
 
@@ -60,7 +61,7 @@ run `Disconnect-MgGraph` first. Partner access through GDAP is not supported.
    search.
 2. Click **Fill from source** to fill in the colleague's name as a starting point, adjust
    first name, last name, display name and the new UPN (suggested as
-   `first.last@<source domain>`), and set or generate a password. The profile fields are
+   `first.last@<source domain>`), and set a password or click **Generate password**. The profile fields are
    copied when the user is created.
 3. Choose the options and click **Start copy**. Every step is shown in the log pane and written
    to a log file.
@@ -119,14 +120,14 @@ Organization Management or the Security Group Creation and Membership role.
 `UsageLocation`, `JobTitle`, `Department`, `OfficeLocation`, `City`, `Country` and
 `CompanyName` come from the source user; empty values are skipped. Name, display name, UPN and
 password are entered by hand. The mail nickname is `firstnamelastname` and the suggested UPN
-`firstname.lastname@<source domain>`, lower case, other characters removed; letters with accents are removed too
+`firstname.lastname@<source domain>` (spaces in a name become dots), lower case, other characters removed; letters with accents are removed too
 ("Daniëlle" becomes "danille"), so check them. The new user must change the password at first sign-in.
 
 ### Groups
 
 - Microsoft 365 groups and security groups: through Microsoft Graph.
 - Distribution groups and mail-enabled security groups: read-only in Graph, so the tool
-  recognises them in the same scan and adds the user through Exchange Online
+  recognizes them in the same scan and adds the user through Exchange Online
   (`Add-DistributionGroupMember`). This can start an Exchange sign-in even if mailbox
   permissions are not selected.
 - Dynamic groups are skipped: the rule decides membership. Dynamic distribution groups have no
@@ -150,9 +151,9 @@ using a new seat. **Before anything is created**, the tool shows an overview to 
 
 - which direct licenses move from the source to the new user;
 - licenses the source has both directly and through a group (the direct one is only removed
-  once the source has left that group; otherwise no seat comes free);
+  once the source has left that group; otherwise no seat is freed up);
 - licenses in an error state (not moved);
-- license groups without a free seat, with how each seat comes free: a fixed group (remove the
+- license groups without a free seat, with how each seat is freed up: a fixed group (remove the
   source), a dynamic group whose rule requires `user.accountEnabled -eq true` (block sign-in),
   or by hand, with the reason;
 - the source mailbox: without a license it is deleted after 30 days, so the tool offers to

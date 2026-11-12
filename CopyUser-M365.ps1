@@ -469,7 +469,7 @@ function Ensure-ExchangeConnection {
 
     if (-not $NewConnection) {
         try { Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue } catch {}
-        throw ("Exchange Online is not connected to the same tenant as Graph. Graph TenantId: {0}. Check the admin account/GDAP connection used." -f $GraphTenantId)
+        throw ("Exchange Online is not connected to the same tenant as Graph. Graph TenantId: {0}. Check the admin account used." -f $GraphTenantId)
     }
 
     Log-Info ("Exchange Online connected: tenant {0}" -f $NewConnection.TenantID)
@@ -1692,13 +1692,13 @@ function Confirm-LicenseTransfer {
         if ($CoveredDirect.Count -gt 0) { $Steps.Add('then remove the direct assignment of the same license(s) from the source') }
         if ($Steps.Count -gt 0) {
             $ReleaseLines = @(
-                'Phase out the source so the group licenses become available for the new user?'
+                'Release the source so the group licenses become available for the new user?'
                 ''
             ) + @($Steps | ForEach-Object { "  - $_" }) + @(
                 ''
-                'The script then waits until the source has lost the licenses, has the new user''s licenses reprocessed and checks whether they are active.'
+                'The script then waits until the source has lost the licenses, reprocesses the new user''s licenses and checks whether they are active.'
                 ''
-                'Yes = phase out'
+                'Yes = release the source'
                 'No = skip (the new user will not get these licenses yet; the source keeps them)'
             )
             $Release = ((Show-UiQuestion -Message ($ReleaseLines -join $NL) -Buttons 'YesNo') -eq 'Yes')
@@ -1707,7 +1707,7 @@ function Confirm-LicenseTransfer {
         }
     }
 
-    Log-Info ("License transfer confirmed. Convert source mailbox to shared: {0}. Phase out source for group licenses: {1}" -f $Convert, $Release)
+    Log-Info ("License transfer confirmed. Convert source mailbox to shared: {0}. Release source for group licenses: {1}" -f $Convert, $Release)
     return [pscustomobject]@{ ConvertMailbox = $Convert; ReleaseGroups = $Release }
 }
 
@@ -1984,13 +1984,13 @@ function Move-UserLicenses {
     # Step 4: source out of license groups, only if the direct transfer succeeded.
     $Released = @{}
     if ($Releasable.Count -gt 0 -and -not $TransferOk) {
-        Log-Warning 'Phasing out the source skipped because the transfer of direct licenses did not succeed.'
+        Log-Warning 'Releasing the source skipped because the transfer of direct licenses did not succeed.'
         $Results.Add([pscustomobject]@{ SkuId = ''; SkuPartNumber = 'group licenses'; Status = 'ReleaseIssue'; Detail = 'source not phased out (not blocked, not removed from groups) because the transfer of direct licenses failed.' })
     } elseif ($Releasable.Count -gt 0) {
         $Release = Release-SourceGroupLicenses -Plan $Plan -Groups $Releasable
         $Released = $Release.Released
         foreach ($Issue in $Release.Issues) {
-            $Results.Add([pscustomobject]@{ SkuId = ''; SkuPartNumber = 'phase-out'; Status = 'ReleaseIssue'; Detail = $Issue })
+            $Results.Add([pscustomobject]@{ SkuId = ''; SkuPartNumber = 'release'; Status = 'ReleaseIssue'; Detail = $Issue })
         }
     }
 
@@ -2098,7 +2098,7 @@ function Confirm-NumberTransfer {
         $Lines.Add('')
         $Lines.Add(("As soon as the new user is ready to call in Teams (waits up to {0} minutes) the number is removed from the source, assigned to the new user and Enterprise Voice is enabled. If assignment fails, the number is returned to the source." -f [Math]::Round($TeamsUserWaitTimeoutSeconds / 60)))
         if ($WithLicenseTransfer) {
-            $Lines.Add('Note: if the source loses Teams Phone through the license transfer or the phase-out, Teams releases the number earlier. The script then assigns it as soon as the new user is ready; returning it to the source is not possible in that case.')
+            $Lines.Add('Note: if the source loses Teams Phone through the license transfer or the release, Teams releases the number earlier. The script then assigns it as soon as the new user is ready; returning it to the source is not possible in that case.')
         }
         $Lines.Add('')
         $Lines.Add('Continue?')
@@ -2387,7 +2387,7 @@ $script:Form.Size          = New-Object System.Drawing.Size(760, 725)
 $script:Form.MinimumSize   = New-Object System.Drawing.Size(760, 725)
 
 $lblSearch          = New-Object System.Windows.Forms.Label
-$lblSearch.Text     = 'Search source user'
+$lblSearch.Text     = 'Search for the source user'
 $lblSearch.Location = New-Object System.Drawing.Point(15, 15)
 $lblSearch.Size     = New-Object System.Drawing.Size(160, 20)
 $script:Form.Controls.Add($lblSearch)
@@ -2448,7 +2448,7 @@ foreach ($item in $labels) {
 }
 
 $btnRandomPassword          = New-Object System.Windows.Forms.Button
-$btnRandomPassword.Text     = 'Random password'
+$btnRandomPassword.Text     = 'Generate password'
 $btnRandomPassword.Location = New-Object System.Drawing.Point(450, 166)
 $btnRandomPassword.Size     = New-Object System.Drawing.Size(145, 28)
 $grpNewUser.Controls.Add($btnRandomPassword)
@@ -2817,7 +2817,7 @@ function Invoke-CopyRun {
     }
 
     # Right after New-MgUser, Graph sometimes does not yet know the user in other calls.
-    Set-UiBusyState -Busy $true -StatusText 'Waiting until new user can be found...'
+    Set-UiBusyState -Busy $true -StatusText 'Waiting for the new user to appear in Graph...'
     $null = Wait-ForGraphUser -UserId $Created.NewUser.Id -TimeoutSeconds $GraphUserWaitSeconds
 
     # ── Phase 2: groups ─────────────────────────────────────────────────────
@@ -2876,7 +2876,7 @@ function Invoke-CopyRun {
                 'RolledBack'         { $RunIssues.Add(("License {0}: assignment failed, returned to the source." -f $LicenseName)) }
                 'SkippedSourceError' { $RunIssues.Add(("License {0}: source license has an error status and was not transferred." -f $LicenseName)) }
                 'GroupNoSeat'        { $RunIssues.Add(("License {0}: {1}" -f $LicenseName, $LicenseProblem.Detail)) }
-                'ReleaseIssue'       { $RunIssues.Add(("Phasing out source: {0}" -f $LicenseProblem.Detail)) }
+                'ReleaseIssue'       { $RunIssues.Add(("Releasing the source: {0}" -f $LicenseProblem.Detail)) }
                 'ReprocessPending'   { $RunIssues.Add(("License {0}: {1}" -f $LicenseName, $LicenseProblem.Detail)) }
                 default              { $RunIssues.Add(("License {0}: {1}" -f $LicenseName, $LicenseProblem.Detail)) }
             }
