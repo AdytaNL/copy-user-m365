@@ -41,6 +41,14 @@ Background: [A new colleague, set up like the last](https://adyta.nl/en/engineer
 - An admin account with the roles below. The tool signs in interactively (delegated).
 - A test tenant for your first runs.
 
+## Before you start: one tenant per PowerShell window
+
+The tool reuses an existing Microsoft Graph session in the PowerShell window it runs in, and
+connects without a tenant ID. If you worked in another tenant in the same window, the new user
+would be created there. Exchange and Teams sessions are checked against the Graph tenant, but
+the Graph tenant itself is not shown. So start every tenant in a **new PowerShell window**, or
+run `Disconnect-MgGraph` first. Partner access through GDAP is not supported.
+
 ## Quick start
 
 ```powershell
@@ -68,7 +76,7 @@ open during a copy.
 |---|---|
 | **Copy mailbox permissions** | FullAccess and SendAs on shared mailboxes |
 | **Copy licenses** | Directly assigned licenses, including disabled service plans |
-| **Transfer licenses from source** | Moves the direct licenses instead of using new seats; also ticks **Copy licenses** |
+| **Transfer licenses from source** | Moves the direct licenses instead of using new seats; also ticks **Copy licenses**. After a separate confirmation it can also block the source's sign-in, revoke its sessions and remove it from license groups |
 | **Transfer phone number from source (Teams)** | Moves the source's Teams number and turns on Enterprise Voice |
 
 Group memberships are always copied.
@@ -84,7 +92,7 @@ Graph scopes (requested at first sign-in):
 | `Group.Read.All` | Read the source user's group memberships |
 | `GroupMember.ReadWrite.All` | Add the new user to groups |
 | `Directory.Read.All` | Read tenant and domain data |
-| `Directory.ReadWrite.All` | Directory writes beyond the user scope, requested together with it |
+| `Directory.ReadWrite.All` | Requested by the tool for directory writes; it is not narrowed down further |
 | `Organization.Read.All` | Read verified domains for UPN validation |
 
 These scopes need admin consent once per tenant.
@@ -96,7 +104,7 @@ Admin roles of the account that runs the tool (at least):
 | User Administrator | Create the user, block sign-in of the source, revoke sessions |
 | License Administrator (or User Administrator) | Assign, remove and reprocess licenses |
 | Groups Administrator (or User Administrator) | Add and remove group memberships |
-| Exchange Administrator or Recipient Management | Convert a mailbox to shared, mailbox permissions, distribution groups |
+| Exchange Administrator | Convert a mailbox to shared, mailbox permissions, distribution groups (the tool always uses `-BypassSecurityGroupManagerCheck`, which Recipient Management alone does not allow) |
 | Teams Telephony Administrator (or Teams Administrator) | Phone number transfer, Enterprise Voice |
 | Privileged Authentication Administrator | Only if the source user holds an admin role (block sign-in, revoke sessions) |
 
@@ -110,8 +118,8 @@ Organization Management or the Security Group Creation and Membership role.
 
 `UsageLocation`, `JobTitle`, `Department`, `OfficeLocation`, `City`, `Country` and
 `CompanyName` come from the source user; empty values are skipped. Name, display name, UPN and
-password are entered by hand. The mail nickname and the suggested UPN are first name plus
-last name, lower case, other characters removed; letters with accents are removed too
+password are entered by hand. The mail nickname is `firstnamelastname` and the suggested UPN
+`firstname.lastname@<source domain>`, lower case, other characters removed; letters with accents are removed too
 ("Daniëlle" becomes "danille"), so check them. The new user must change the password at first sign-in.
 
 ### Groups
@@ -129,7 +137,8 @@ last name, lower case, other characters removed; letters with accents are remove
 Only licenses assigned **directly** to the source are assigned directly to the new user,
 including disabled service plans. Not copied: a direct license the source also gets through a
 group, and a direct license in an error state. Licenses that come through a group follow from
-the copied group membership, so not from dynamic, on-premises or role-assignable groups.
+the copied group membership. Dynamic groups are not copied, but because job title and
+department are copied, a dynamic rule on those fields often gives the new user the license anyway.
 Before assigning, the tool checks the tenant's free seats (`Get-MgSubscribedSku`); without a
 free seat that license is skipped and the run ends as `Partial`.
 
@@ -234,7 +243,10 @@ Log file, next to the Intune logs so it is collected with them:
 (`C:\ProgramData\...` when run as SYSTEM). Format:
 `yyyy-MM-dd HH:mm:ss [LEVEL] [USER] message`.
 
-Most wait times and retry counts are variables at the top of the script.
+Most wait times and retry counts are variables at the top of the script. In the worst case a
+run keeps the window busy for about 50 minutes (15 minutes waiting for the mailbox and 30
+minutes for Teams). There is one log file for all tenants; the log lines do not include the
+tenant, so note the tenant per run if you need that for an audit trail.
 
 ## Limitations
 
