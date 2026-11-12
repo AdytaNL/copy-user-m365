@@ -8,6 +8,21 @@ colleague who left.
 
 Background: [A new colleague, set up like the last](https://adyta.nl/en/engineering/a-new-colleague-set-up-like-the-last/).
 
+## What it handles that a manual copy misses
+
+- **Shared mailboxes that really appear in Outlook.** FullAccess is only set once Exchange
+  reports a real mailbox; set earlier, Exchange accepts it without an error but drops the
+  AutoMapping link.
+- **Distribution groups.** They are read-only in Graph; the tool adds them through Exchange
+  in the same run.
+- **No free license.** It can move the licenses of a colleague who left, and shows how each
+  seat in a license group comes free before anything changes.
+- **The old mailbox.** Without a license it is deleted after 30 days; the tool offers to make
+  it a shared mailbox first.
+- **The phone number.** It moves the Teams number, turns Enterprise Voice on explicitly and
+  checks it.
+- **The right tenant.** Every Exchange and Teams session is checked against the Graph tenant.
+
 ## Requirements
 
 - Windows (the window uses WinForms) with Windows PowerShell 5.1 or PowerShell 7.
@@ -35,8 +50,10 @@ Background: [A new colleague, set up like the last](https://adyta.nl/en/engineer
 1. Search for the colleague to copy (display name, UPN, first name or surname, starting with
    the text you type; up to 25 results) and select them. The Graph sign-in starts at the first
    search.
-2. Click **Fill from source**, adjust first name, last name, display name and the new UPN
-   (suggested as `first.last@<source domain>`), and set or generate a password.
+2. Click **Fill from source** to fill in the colleague's name as a starting point, adjust
+   first name, last name, display name and the new UPN (suggested as
+   `first.last@<source domain>`), and set or generate a password. The profile fields are
+   copied when the user is created.
 3. Choose the options and click **Start copy**. Every step is shown in the log pane and written
    to a log file.
 
@@ -67,8 +84,10 @@ Graph scopes (requested at first sign-in):
 | `Group.Read.All` | Read the source user's group memberships |
 | `GroupMember.ReadWrite.All` | Add the new user to groups |
 | `Directory.Read.All` | Read tenant and domain data |
-| `Directory.ReadWrite.All` | Write directory objects |
+| `Directory.ReadWrite.All` | Directory writes beyond the user scope, requested together with it |
 | `Organization.Read.All` | Read verified domains for UPN validation |
+
+These scopes need admin consent once per tenant.
 
 Admin roles of the account that runs the tool (at least):
 
@@ -91,8 +110,9 @@ Organization Management or the Security Group Creation and Membership role.
 
 `UsageLocation`, `JobTitle`, `Department`, `OfficeLocation`, `City`, `Country` and
 `CompanyName` come from the source user; empty values are skipped. Name, display name, UPN and
-password are entered by hand. The mail nickname is first name plus last name, lower case,
-other characters removed. The new user must change the password at first sign-in.
+password are entered by hand. The mail nickname and the suggested UPN are first name plus
+last name, lower case, other characters removed; letters with accents are removed too
+("Daniëlle" becomes "danille"), so check them. The new user must change the password at first sign-in.
 
 ### Groups
 
@@ -173,7 +193,8 @@ copied.
 Exchange waits in two steps:
 
 1. Up to 3 minutes until the new user appears in Exchange. On a time-out, both the
-   distribution groups and the mailbox permissions are skipped, with the commands in the report.
+   distribution groups and the mailbox permissions are skipped; the report gives the commands
+   for the distribution groups and says the mailbox permissions still need to be set.
 2. Up to 15 minutes until Exchange reports a real `UserMailbox`. Exchange accepts
    `Add-MailboxPermission -AutoMapping:$true` before the mailbox exists, without an error, but
    does not record the AutoMapping link: the user has access, but the mailbox does not appear
@@ -208,7 +229,8 @@ The window ends with "Copy fully completed" or "Copy completed; some items need 
 with the concrete actions per license, group, shared mailbox, phone number or release step.
 The log records the final status as `Success` or `Partial`.
 
-Log file: `%LOCALAPPDATA%\Microsoft\IntuneManagementExtension\Logs\CopyUser-M365.log`
+Log file, next to the Intune logs so it is collected with them:
+`%LOCALAPPDATA%\Microsoft\IntuneManagementExtension\Logs\CopyUser-M365.log`
 (`C:\ProgramData\...` when run as SYSTEM). Format:
 `yyyy-MM-dd HH:mm:ss [LEVEL] [USER] message`.
 
@@ -218,8 +240,9 @@ Most wait times and retry counts are variables at the top of the script.
 
 - One tenant at a time; no cross-tenant copy.
 - Not copied: manager, calendar permissions, mailbox language, group ownership, Send on
-  Behalf, enterprise app assignments, directory roles, administrative unit memberships, and
-  profile fields other than those listed above.
+  Behalf, enterprise app assignments, directory roles, administrative unit memberships,
+  private and shared Teams channels, permissions shared directly on SharePoint or OneDrive
+  items, room and equipment mailboxes, and profile fields other than those listed above.
 - AutoMapping only works in classic Outlook for Windows; new Outlook and Outlook for Mac do
   not add shared mailboxes automatically.
 - All Graph, Exchange and Teams calls run on the main thread: the sign-in sessions are bound

@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 #
 # Architecture:
 #   Everything runs synchronously on the main thread.
-#   Graph AND Exchange auth are both bound to a runspace — worker runspace removed.
+#   Graph AND Exchange auth are both bound to the runspace you signed in from.
 #   Wait-ForUserInExchange uses short sleeps + DoEvents so the UI stays responsive.
 #
 # Main behaviour:
@@ -66,9 +66,7 @@ $script:StatusLabel          = $null
 $script:ControlsToToggle     = @()
 $script:SelectedSourceUser   = $null
 $script:SourceUserResults    = [System.Collections.Generic.List[object]]::new()
-# Placeholder for future rollback functionality: holds the group results of the last
-# copy run so that memberships already added can be undone after a partial failure.
-# Do not remove — will be used once rollback is implemented.
+# Group results of the last copy run (memberships added through Graph and Exchange).
 $script:CopiedGroupResults   = [System.Collections.Generic.List[object]]::new()
 $script:GraphConnectedMain   = $false
 $script:GraphTenantId        = $null
@@ -3102,7 +3100,7 @@ $script:Form.Add_FormClosing({
 })
 
 $script:Form.Add_FormClosed({
-    # Worker runspace has been removed since v19 — no async cleanup needed
+    # Everything runs on the main thread, so there is no background cleanup
 })
 
 $script:Form.Add_Shown({
