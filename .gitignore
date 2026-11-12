@@ -1,0 +1,14 @@
+# Logs
+*.log
+*.transcript.txt
+
+# Local settings
+*.local.ps1
+*.local.json
+.env
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
