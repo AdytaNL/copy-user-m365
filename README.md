@@ -253,6 +253,8 @@ tenant, so note the tenant per run if you need that for an audit trail.
 ## Limitations
 
 - One tenant at a time; no cross-tenant copy.
+- Teams signs in with a device code. If Conditional Access blocks the device code flow, the
+  phone number transfer cannot run; transfer the number by hand with the commands from the report.
 - Not copied: manager, calendar permissions, mailbox language, group ownership, Send on
   Behalf, enterprise app assignments, directory roles, administrative unit memberships,
   private and shared Teams channels, permissions shared directly on SharePoint or OneDrive
