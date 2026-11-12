@@ -92,7 +92,7 @@ Graph scopes (requested at first sign-in):
 | `Group.Read.All` | Read the source user's group memberships |
 | `GroupMember.ReadWrite.All` | Add the new user to groups |
 | `Directory.Read.All` | Read tenant and domain data |
-| `Directory.ReadWrite.All` | Requested by the tool for directory writes; it is not narrowed down further |
+| `Directory.ReadWrite.All` | Requested by the tool for directory writes. A delegated scope never reaches further than the roles of the admin who signs in |
 | `Organization.Read.All` | Read verified domains for UPN validation |
 
 These scopes need admin consent once per tenant.
@@ -104,7 +104,7 @@ Admin roles of the account that runs the tool (at least):
 | User Administrator | Create the user, block sign-in of the source, revoke sessions |
 | License Administrator (or User Administrator) | Assign, remove and reprocess licenses |
 | Groups Administrator (or User Administrator) | Add and remove group memberships |
-| Exchange Administrator | Convert a mailbox to shared, mailbox permissions, distribution groups (the tool always uses `-BypassSecurityGroupManagerCheck`, which Recipient Management alone does not allow) |
+| Exchange Administrator | Convert a mailbox to shared, mailbox permissions, distribution groups |
 | Teams Telephony Administrator (or Teams Administrator) | Phone number transfer, Enterprise Voice |
 | Privileged Authentication Administrator | Only if the source user holds an admin role (block sign-in, revoke sessions) |
 
@@ -129,7 +129,8 @@ password are entered by hand. The mail nickname is `firstnamelastname` and the s
   recognises them in the same scan and adds the user through Exchange Online
   (`Add-DistributionGroupMember`). This can start an Exchange sign-in even if mailbox
   permissions are not selected.
-- Dynamic groups and dynamic distribution groups are skipped: the rule decides membership.
+- Dynamic groups are skipped: the rule decides membership. Dynamic distribution groups have no
+  fixed members, so they never show up as a membership to copy.
 - Groups synced from on-premises and role-assignable groups are not changed and are reported.
 
 ### Licenses (option)
@@ -238,14 +239,14 @@ The window ends with "Copy fully completed" or "Copy completed; some items need 
 with the concrete actions per license, group, shared mailbox, phone number or release step.
 The log records the final status as `Success` or `Partial`.
 
-Log file, next to the Intune logs so it is collected with them:
+Log file, in the Intune Management Extension log folder:
 `%LOCALAPPDATA%\Microsoft\IntuneManagementExtension\Logs\CopyUser-M365.log`
 (`C:\ProgramData\...` when run as SYSTEM). Format:
 `yyyy-MM-dd HH:mm:ss [LEVEL] [USER] message`.
 
 Most wait times and retry counts are variables at the top of the script. In the worst case a
-run keeps the window busy for about 50 minutes (15 minutes waiting for the mailbox and 30
-minutes for Teams). There is one log file for all tenants; the log lines do not include the
+run keeps the window busy for more than an hour (all waits and retries added up, including
+15 minutes for the mailbox and 30 minutes for Teams). There is one log file for all tenants; the log lines do not include the
 tenant, so note the tenant per run if you need that for an audit trail.
 
 ## Limitations
